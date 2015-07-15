@@ -27,7 +27,7 @@ by defining a configuration like this (.yaml)
 Cool, huh?
 
 ## Usage
-Following the above example, assume the data source file is called "players.csv" and the configuration file is called "cfg.yaml":
+Following the above example, assume the data source file is called "players.csv" and the configuration file is called "config.yaml":
 ```py
 >>> import csv
 >>> rows = list(csv.DictReader(open('players.csv', 'rb')))
@@ -35,12 +35,12 @@ Following the above example, assume the data source file is called "players.csv"
 {'PA': '378', 'Name': 'Mike Trout', 'K%': '22.5 %'}
 >>>
 >>> import yaml
->>> cfg = yaml.load(open('config.yaml', 'rb').read())
->>> cfg
+>>> config = yaml.load(open('config.yaml', 'rb').read())
+>>> config
 [{'default': 2015, 'source': 'Year'}, {'source': 'Name'}, {'source': 'PA', 'type': 'int'}, {'source': 'K%', 'type': 'float', 'target': 'k_pct', 'rstrip': ' %'}]
 >>>
 >>> from mold import Mold
->>> m = Mold(cfg)
+>>> m = Mold(config)
 >>> m(rows[0])
 OrderedDict([('year', 2015), ('name', u'Mike Trout'), ('pa', 378), ('k_pct', 22.5)])
 ```
