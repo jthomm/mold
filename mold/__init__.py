@@ -34,6 +34,7 @@ class FieldMold(object):
     """This class operates on a single field in the data."""
 
     def __init__(self, config):
+        """`config` is expected to behave like a dictionary."""
         self.config = config
 
     @property
@@ -127,3 +128,119 @@ class FieldMold(object):
         """Produces a key/value tuple which, among others, will eventually 
         constitute an entire dictionary."""
         return (self.target, self.target_value(dct),)
+
+
+
+class RowMold(tuple):
+    """This class operates on a single row (multiple fields) in the data."""
+
+    def __new__(cls, configs):
+        """`configs` is expected to behave like a list of dictionaries."""
+        return super(RowMold, cls).__new__(cls, map(FieldMold, configs))
+
+    def __call__(self, dct):
+        """Produces a dictionary that includes all and only fields listed in 
+        the configuration passed to this class.  Values are transformed 
+        according to the config for each field."""
+        return OrderedDict(field_mold(dct) for field_mold in self)
+
+
+
+class DatabaseFieldABC(object):
+    """Abstract base class for supporting database operations on a single 
+    field."""
+
+    def __init__(self, field_mold):
+        self.field_mold = field_mold
+
+    @property
+    def column(self):
+        """Reuse the `target` method from `FieldMold` class."""
+        return self.field_mold.target
+
+    @property
+    def data_type(self):
+        raise NotImplementedError(
+            '`data_type` method not implemented for this class')
+
+    @property
+    def declaration(self):
+        """E.g. "amount INT" in SQLite..."""
+        return '{column} {data_type}'.format(
+            column=self.column, data_type=self.data_type)
+
+
+
+class DatabaseRowABC(object):
+    """Abstract base class for supporting database operations on an entire 
+    row (multiple fields)."""
+
+    def __init__(self, row_mold):
+        """An implementation of `DatabaseFieldABC` must be declared as 
+        `FIELD_CLASS` before this class can be instantiated."""
+        self.row_mold = row_mold
+        self.database_fields = [self.FIELD_CLASS(field_mold) \
+            for field_mold in row_mold]
+
+    @property
+    def column_list(self):
+        return ', '.join(
+            [database_field.column \
+                for database_field in self.database_fields])
+
+    @property
+    def declaration_list(self):
+        return ', '.join(
+            [database_field.declaration \
+                for database_field in self.database_fields])
+
+    @property
+    def question_marks(self):
+        return ', '.join(['?']*len(self.database_fields))
+
+    def create_table_sql(self, table_name):
+        raise NotImplementedError(
+            '`create_table_sql` method not implemented for this class')
+
+    def create_table(self, cursor, table_name):
+        return cursor.execute(self.create_table_sql(table_name))
+
+    def insert_into_table_sql(self, table_name):
+        raise NotImplementedError(
+            '`insert_into_table_sql` method not implemented for this class')
+
+    def insert_into_table(self, cursor, table_name, dct):
+        values = self.row_mold(dct).values()
+        return cursor.execute(self.insert_into_table_sql(table_name), values)
+
+
+
+class SQLiteField(DatabaseFieldABC):
+
+    SQLITE_DATA_TYPE = {
+        'unicode': 'TEXT',
+        'str': 'TEXT',
+        'int': 'INTEGER',
+        'float': 'REAL',
+    }
+
+    @property
+    def data_type(self):
+        return self.SQLITE_DATA_TYPE[self.field_mold.data_type_name]
+
+
+
+class SQLiteRow(DatabaseRowABC):
+
+    FIELD_CLASS = SQLiteField
+
+    def create_table_sql(self, table_name):
+        return 'CREATE TABLE {table_name} ({declaration_list})'.format(
+            table_name=table_name,
+            declaration_list=self.declaration_list)
+
+    def insert_into_table_sql(self, table_name):
+        return 'INSERT INTO {table_name} ({column_list}) VALUES ({question_marks})'.format(
+            table_name=table_name,
+            column_list=self.column_list,
+            question_marks=self.question_marks)
