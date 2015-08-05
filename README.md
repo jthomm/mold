@@ -4,8 +4,8 @@ A utility for typecasting and transforming text data sources in Python
 ## Purpose
 Convert a text data source like this (.csv)
 ```csv
-Name,PA,K%
-Mike Trout,378,22.5 %
+Name,K%,PA
+Mike Trout,22.5 %,378
 ```
 into this
 ```py
@@ -24,10 +24,9 @@ by defining a configuration like this (.yaml)
   type: float
   rstrip: ' %'
 ```
-Cool, huh?
 
 ## Usage
-Following the above example, assume the data source file is called "players.csv" and the configuration file is called "config.yaml":
+Following the above example, assume the data source file is named "players.csv" and the configuration file is named "config.yaml":
 ```py
 >>> import csv
 >>> rows = list(csv.DictReader(open('players.csv', 'rb')))
